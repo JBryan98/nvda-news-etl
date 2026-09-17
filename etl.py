@@ -15,7 +15,9 @@ def news_etl(connection, time_from: str, time_to: str):
     data = get_news(time_from, time_to)
     if data is None:
         raise Exception("No se pudo obtener datos de la API de Alpha Vantage")
-
+    if len(data) == 0:
+        logger.warning("No se encontraron noticias para el rango de tiempo: %s - %s", time_from, time_to)
+        return 0
     #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     #——————————————————————————————————————TRANSFORM DATA——————————————————————————————————————————————————————————————
     #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————
