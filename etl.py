@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from alpha_vantage_api import get_news
-from repository import get_all_topics, save_topic, save_news_with_topics
+from news_repository import get_all_topics, save_topic, save_news_with_topics
 
 logger = logging.getLogger(__name__)
 
-def news_etl(time_from: str, time_to: str):
+def news_etl(connection, time_from: str, time_to: str):
     #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     #——————————————————————————————————————EXTRACT DATA—————————————————————————————————————————————————————————————————
     #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -23,7 +23,7 @@ def news_etl(time_from: str, time_to: str):
     data.sort(key = lambda i : i['time_published'])
 
     # Tópicos existentes en la base de datos, ayudará a detectar si hay nuevos tópicos que no estén en la base de datos
-    db_topics = get_all_topics()
+    db_topics = get_all_topics(connection)
     db_topic_codes = [
         topic["code"]
         for topic in db_topics
@@ -43,7 +43,7 @@ def news_etl(time_from: str, time_to: str):
             if topic_code not in db_topic_codes:
                 logger.warning(f"El tópico {topic_code} no esta guardado en la base de datos.")
                 logger.info(f"Creando nuevo topic {topic_code}...")
-                save_topic({ "code": topic_code, "name": None})
+                save_topic(connection, { "code": topic_code, "name": None})
                 db_topic_codes.append(topic_code)
 
             news_topics_to_insert.append(
@@ -75,7 +75,8 @@ def news_etl(time_from: str, time_to: str):
     #——————————————————————————————————————————————LOAD DATA————————————————————————————————————————————————————————————
     #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     logger.info("Cargando %s noticias en la base de datos", len(news_to_insert))
-    save_news_with_topics(news_to_insert, news_topics_to_insert)
-    logger.info("Proceso ETL de noticias de Alpha Vantage finalizado exitosamente")
+    total_news_inserted = save_news_with_topics(connection, news_to_insert, news_topics_to_insert)
+    logger.info("Proceso ETL de noticias de Alpha Vantage, se cargaron %s noticias exitosamente", total_news_inserted)
+    return total_news_inserted
 
 

@@ -1,3 +1,4 @@
+import logging
 import os
 import psycopg2
 from dotenv import load_dotenv
@@ -11,9 +12,11 @@ APP_PROFILE = os.getenv("APP_PROFILE")
 # 3. Cargar el archivo .env correspondiente al perfil
 load_dotenv(BASE_DIR / f".env.{APP_PROFILE}", override=True)
 
+logger = logging.getLogger(__name__)
+
 def get_connection():
     try:
-        print("Conectando con PostgreSQL...")
+        logger.info("Conectando con PostgreSQL...")
         connection = psycopg2.connect(
             database = os.getenv("DB_NAME"),
             user = os.getenv("DB_USER"),
@@ -24,5 +27,5 @@ def get_connection():
         )
         return connection
     except Exception as e:
-        print(f"Error al conectar a PostgreSQL con psycopg2: {e}")
+        logger.error("Error al conectar a PostgreSQL con psycopg2: %s", e)
         raise

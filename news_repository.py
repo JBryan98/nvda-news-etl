@@ -1,20 +1,23 @@
+import logging
+
 from psycopg2.extras import RealDictCursor, execute_values
 
-from database import get_connection
+logger = logging.getLogger(__name__)
 
 # Función que retorna todos los tópicos válidos que estan guardados en la db.
-def get_all_topics():
+def get_all_topics(connection):
+    logger.info("Obteniendo todos los tópicos de noticias válidos")
     query = """
             SELECT code, name
             FROM topics;
             """
-    with get_connection() as conn:
-        with conn.cursor(cursor_factory = RealDictCursor) as cursor:
-            cursor.execute(query)
-            return cursor.fetchall()
+    with connection.cursor(cursor_factory = RealDictCursor) as cursor:
+        cursor.execute(query)
+        return cursor.fetchall()
 
 # Función para guardar un nuevo tópico de noticias
-def save_topic(topic):
+def save_topic(connection, topic):
+    logger.info("Guardando nuevo tópico de noticias: %s", topic["code"])
     query = """
             INSERT INTO topics (
             code,
@@ -23,50 +26,34 @@ def save_topic(topic):
         VALUES (%s, %s)
         ON CONFLICT (code) DO NOTHING;
     """
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                query,
-                (
-                    topic["code"],
-                    topic["name"],
-                )
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            query,
+            (
+                topic["code"],
+                topic["name"],
             )
+        )
 
 
 # Función que inicia una transacción para almacenar una noticia y sus tópicos
 # Los tópicos se apoyan en la columna 'url' que es única en cada noticia, este valor es necesario para
 # poder asignarle el id de la noticia persistida en la bd al topico
-# La función hace rollback en caso de errores
-def save_news_with_topics(news_data, news_topics_data):
-    with get_connection() as conn:
-        try:
-            saved_news = save_news(
-                conn,
-                news_data
-            )
-            print("news_data total: ", len(news_data))
-            print("saved_news total: ", len(saved_news))
-
-            news_ids = {
-                news["url"]: news["id"]
-                for news in saved_news
-            }
-
-            for news_topic in news_topics_data:
-                news_topic["news_id"] = news_ids[news_topic["url"]]
-
-            save_news_topics(
-                conn,
-                news_topics_data
-            )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+def save_news_with_topics(connection, news_data, news_topics_data):
+    saved_news = save_news(connection, news_data)
+    news_ids = {
+        news["url"]: news["id"]
+        for news in saved_news
+    }
+    for news_topic in news_topics_data:
+        news_topic["news_id"] = news_ids[news_topic["url"]]
+    save_news_topics(connection, news_topics_data)
+    return len(saved_news)
 
 # Función para guardar noticias, esta función depende de la función save_news_with_topics ya que forma parte de una transacción
 def save_news(connection, data):
+    logger.info("Guardando noticias en la base de datos, total: %s", len(data))
     query = """
             INSERT INTO news (title, \
                               url, \
