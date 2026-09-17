@@ -2,7 +2,8 @@ name: NVDA News ETL Pipeline
 
 on:
   schedule:
-    - cron: '0 1-23/2 * * *'
+    # Ejecuta el workflow cada 2 horas en UTC
+    - cron: '0 */2 * * *'
   # Permite ejecutar el workflow manualmente desde la pestaña 'Actions' en GitHub
   workflow_dispatch:
 
