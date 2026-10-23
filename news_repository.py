@@ -47,8 +47,14 @@ def save_news_with_topics(connection, news_data, news_topics_data):
         for news in saved_news
     }
     for news_topic in news_topics_data:
-        news_topic["news_id"] = news_ids[news_topic["url"]]
-    save_news_topics(connection, news_topics_data)
+        if news_topic["url"] in news_ids:
+            news_topic["news_id"] = news_ids[news_topic["url"]]
+    valid_news_topics_data = [
+        news_topic for news_topic in news_topics_data
+        if news_topic.get("news_id")
+    ]
+    if valid_news_topics_data:
+        save_news_topics(connection, valid_news_topics_data)
     return len(saved_news)
 
 # Función para guardar noticias, esta función depende de la función save_news_with_topics ya que forma parte de una transacción
@@ -90,6 +96,8 @@ def save_news(connection, data):
         )
         for news in data
     ]
+    if not values:
+        return []
     with connection.cursor(cursor_factory=RealDictCursor) as cursor:
         execute_values(
             cursor,

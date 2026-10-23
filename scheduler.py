@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import etl
 from database import get_connection
@@ -7,6 +7,11 @@ from etl_metadata_repository import get_last_successful_run, create_etl_run, mar
 
 
 logger = logging.getLogger(__name__)
+MAX_CATCHUP_HOURS_PER_RUN = 6
+
+
+def to_marketaux_datetime(value):
+    return value.astimezone(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
 
 # Workflow que maneja la ejecución del ETL de noticias, incluyendo la gestión de metadatos y manejo de errores.
 # Solo se utiliza una sola conexión a la base de datos para el proceso
@@ -15,7 +20,9 @@ def run_news_etl():
     with get_connection() as conn:
         last_run = get_last_successful_run(conn)
         time_from = last_run["time_to"]
-        time_to = datetime.now(timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+        capped_time_to = time_from + timedelta(hours=MAX_CATCHUP_HOURS_PER_RUN)
+        time_to = min(now_utc, capped_time_to)
 
         # Registra el inicio de la ejecución del ETL en la tabla etl_metadata
         run_id = create_etl_run(
@@ -29,8 +36,8 @@ def run_news_etl():
         try:
             total_news_inserted = etl.news_etl(
                 conn,
-                time_from.strftime("%Y%m%dT%H%M"),
-                time_to.strftime("%Y%m%dT%H%M"),
+                to_marketaux_datetime(time_from),
+                to_marketaux_datetime(time_to),
             )
 
             # Si el ETL completa con éxito, marcamos el éxito y se hace commit de la transacción
