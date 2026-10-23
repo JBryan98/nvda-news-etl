@@ -33,6 +33,14 @@ def create_etl_run(connection, time_from, time_to):
             status
         )
         VALUES (%s, %s, %s, 'RUNNING')
+        ON CONFLICT (process_name, time_from, time_to)
+        DO UPDATE
+        SET
+            status = 'RUNNING',
+            started_at = NOW(),
+            finished_at = NULL,
+            error_message = NULL,
+            total_inserts = NULL
         RETURNING id;
     """
 
